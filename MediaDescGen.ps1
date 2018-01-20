@@ -11,32 +11,53 @@ The directory to search for video files in. Defaults to the folder the script is
 ./MediaDescGen.ps1 -directory "C:\Users\User\Downloads"
 #>
 
- param (
+param (
     [string]$directory = "$PSScriptRoot"
 )
-# Download utilities
-if (!(Test-Path $PSScriptRoot/MediaDescGen)) {
-    mkdir $PSScriptRoot/MediaDescGen
-    Invoke-WebRequest https://mediaarea.net/download/binary/mediainfo/17.12/MediaInfo_CLI_17.12_Windows_x64.zip -OutFile $PSScriptRoot/MediaDescGen/mediainfo.zip
-    Invoke-WebRequest http://fsinapsi.altervista.org/code/avinaptic/avinaptic2-win32-20111218.zip -OutFile $PSScriptRoot/MediaDescGen/avinaptic.zip
-    Invoke-WebRequest https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-20180102-57d0c24-win64-static.zip -OutFile $PSScriptRoot/MediaDescGen/ffmpeg.zip
-    Expand-Archive $PSScriptRoot/MediaDescGen/mediainfo.zip -DestinationPath $PSScriptRoot/MediaDescGen/mediainfo
-    Expand-Archive $PSScriptRoot/MediaDescGen/avinaptic.zip -DestinationPath $PSScriptRoot/MediaDescGen/avinaptic
-    Expand-Archive $PSScriptRoot/MediaDescGen/ffmpeg.zip -DestinationPath $PSScriptRoot/MediaDescGen/ffmpeg
-}
 
 # Define utility paths
 $mediainfo_path = "$PSScriptRoot\MediaDescGen\mediainfo\MediaInfo.exe"
 $avinaptic_path = "$PSScriptRoot\MediaDescGen\avinaptic\avinaptic2-20111218\avinaptic2-cli.exe"
 $ffmpeg_path = "$PSScriptRoot\MediaDescGen\ffmpeg\ffmpeg-20180102-57d0c24-win64-static\bin\ffmpeg.exe"
 
-# Get a list of all video files in the directory
-$files = Get-ChildItem $directory/* -include "*.m4v","*.mkv","*.mp4" -Name
+# Download utilities, if needed
+if (!(Test-Path $PSScriptRoot/MediaDescGen)) {
+    Write-Host "Utilities folder not found, creating..."
+    mkdir $PSScriptRoot/MediaDescGen | Out-Null
+}
+if (!(Test-Path $mediainfo_path)) {
+    Write-Host "Mediainfo not found, downloading..."
+    Invoke-WebRequest https://mediaarea.net/download/binary/mediainfo/17.12/MediaInfo_CLI_17.12_Windows_x64.zip -OutFile $PSScriptRoot/MediaDescGen/mediainfo.zip
+    Expand-Archive $PSScriptRoot/MediaDescGen/mediainfo.zip -DestinationPath $PSScriptRoot/MediaDescGen/mediainfo
+    Remove-Item $PSScriptRoot/MediaDescGen/mediainfo.zip
+    Write-Host "Mediainfo downloaded."
+}
+if (!(Test-Path $avinaptic_path)) {
+    Write-Host "Avinaptic not found, downloading..."
+    Invoke-WebRequest http://fsinapsi.altervista.org/code/avinaptic/avinaptic2-win32-20111218.zip -OutFile $PSScriptRoot/MediaDescGen/avinaptic.zip
+    Expand-Archive $PSScriptRoot/MediaDescGen/avinaptic.zip -DestinationPath $PSScriptRoot/MediaDescGen/avinaptic
+    Remove-Item $PSScriptRoot/MediaDescGen/avinaptic.zip
+    Write-Host "Avinaptic downloaded."
+}
+if (!(Test-Path $ffmpeg_path)) {
+    Write-Host "ffmpeg not found, downloading..."
+    Invoke-WebRequest https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-20180102-57d0c24-win64-static.zip -OutFile $PSScriptRoot/MediaDescGen/ffmpeg.zip
+    Expand-Archive $PSScriptRoot/MediaDescGen/ffmpeg.zip -DestinationPath $PSScriptRoot/MediaDescGen/ffmpeg
+    Remove-Item $PSScriptRoot/MediaDescGen/ffmpeg.zip
+    Write-Host "ffmpeg downloaded."
+}
 
-foreach ($file in $files) {
+function buildDesc {
+    param (
+        $file_path
+    )
+    # Get path of parent directory
+    $directory = $file_path.Directory.FullName
     # Get file name without extension
+    $file = $file_path.Name
     $name = [io.path]::GetFileNameWithoutExtension("$file")
     # Move file into its own directory
+    Write-Host "Moving $file into its own directory..."
     mkdir $directory/$name | out-null
     mv $directory/$file $directory/$name/$file
     # Check for an .nfo file with the same name and, if it exists, move it too
@@ -44,6 +65,7 @@ foreach ($file in $files) {
         mv $directory/$name.nfo $directory/$name/
     }
 
+    Write-Host "Creating description..."
     ###############
     ### General ###
     ###############
@@ -65,10 +87,21 @@ foreach ($file in $files) {
     # Get the video codec
     [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Codec: ")
     cmd /c $mediainfo_path --output=Video`;%Format% $directory/$name/$file | Add-Content $directory/$name/$name-description.txt
+   
+    # If the bitrate is variable, get the max bitrate
+    if ((cmd /c $mediainfo_path --output=Video`;%BitRate_Mode/String% $directory/$name/$file) -like "Variable*") {
+        [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Bitrate mode: Variable`r`n")
+        [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Maximum Bitrate (mbps): ")
+        $videobitrate = cmd /c $mediainfo_path --output=Video`;%BitRate_Maximum% $directory/$name/$file
+        ($videobitrate/1mb).Tostring(".000") | Add-Content $directory/$name/$name-description.txt
+    }
+    else {
     # Get the bitrate in bps, and convert to Mbps
-    [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Bitrate (mbps): ")
-    $videobitrate = cmd /c $mediainfo_path --output=Video`;%BitRate% $directory/$name/$file #| Add-Content $directory/$name/$name-description.txt
-    ($videobitrate/1mb).Tostring(".000") | Add-Content $directory/$name/$name-description.txt
+        [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Bitrate mode: Constant`r`n")
+        [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Bitrate (mbps): ")
+        $videobitrate = cmd /c $mediainfo_path --output=Video`;%BitRate% $directory/$name/$file
+        ($videobitrate/1mb).Tostring(".000") | Add-Content $directory/$name/$name-description.txt
+    }
     # Get the horizontal resolution
     [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Width: ")
     cmd /c $mediainfo_path --output=Video`;%Width% $directory/$name/$file | Add-Content $directory/$name/$name-description.txt
@@ -86,7 +119,7 @@ foreach ($file in $files) {
     [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Codec: ")
     cmd /c $mediainfo_path --output=Audio`;%Format% $directory/$name/$file | Add-Content $directory/$name/$name-description.txt
     # Get bitrate from avinaptic if AAC audio
-    if (cmd /c $mediainfo_path --output=Audio`;%Format% $directory/$name/$file -like "*AAC*") {
+    if ((cmd /c $mediainfo_path --output=Audio`;%Format% $directory/$name/$file) -like "*AAC*") {
         # Get avinaptic report
         $avinaptic = cmd /c $avinaptic_path "$directory/$name/$file" 2> $null
         # Transform report into an array
@@ -97,6 +130,20 @@ foreach ($file in $files) {
         $avinaptic = $avinaptic[$audio_position..$avinaptic.Length]
         # Get the bitrate from the audio information
         $audiobitrate = $avinaptic -like "Bitrate*"
+        # If this returns no result, the bitrate is variable, and the track requires a full analysis with Avinaptic
+        if ($audiobitrate.Length -lt 1) {
+            echo "The audio track requires full analysis, this may take a minute..."
+            # Get avinaptic report
+            $avinaptic = cmd /c $avinaptic_path --drf "$directory/$name/$file" 2> $null
+            # Transform report into an array
+            $avinaptic = $avinaptic -split "`n"
+            $avinaptic = $avinaptic -match '[ Audio track ]'
+            # Trim down to only the audio information
+            $audio_position = [array]::IndexOf($avinaptic,"[ Audio track ]")
+            $avinaptic = $avinaptic[$audio_position..$avinaptic.Length]
+            # Get the bitrate from the audio information
+            $audiobitrate = $avinaptic -like "Bitrate*"
+        }
         # Write to description
         Add-Content $directory/$name/$name-description.txt -Value $audiobitrate
     }
@@ -113,35 +160,40 @@ foreach ($file in $files) {
     # Get the audio language
     [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Language: ")
     cmd /c $mediainfo_path --output=Audio`;%Language/String% $directory/$name/$file | Add-Content $directory/$name/$name-description.txt
-
-    # Get subtitle format
+    
+    #################
+    ### SUBTITLES ###
+    #################
     Add-Content -Path $directory/$name/$name-description.txt -Value "`r`n[b]Subtitles[/b]"
+    # Get subtitle format
     [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Format: ")
-    $subtitleformat = cmd /c $mediainfo_path --output=Text`;%Format% $directory/$name/$file
-    # If there are no subtitles, report it
-    if ($subtitleformat = "`n") {
+    if ((cmd /c $mediainfo_path --output=Text`;%Format% $directory/$name/$file).Length -lt "2") {
         Add-Content $directory/$name/$name-description.txt -Value "None`n"
     }
-    
     else {
-        Add-Content $directory/$name/$name-description.txt -Value $subtitleformat
+        cmd /c $mediainfo_path --output=Text`;%Format% $directory/$name/$file | Add-Content $directory/$name/$name-description.txt
     }
     # Get subtitle language
     [IO.File]::AppendAllText("$directory/$name/$name-description.txt","Language: ")
-    $subtitlelanguage = cmd /c $mediainfo_path --output=Text`;%Language/String% $directory/$name/$file
-    # If there are no subtitles, report it
-    if ($subtitlelanguage = "`n") {
+    if ((cmd /c $mediainfo_path --output=Text`;%Language/String% $directory/$name/$file).Length -lt "2") {
         Add-Content $directory/$name/$name-description.txt -Value "None`n"
     }
-    
     else {
-        Add-Content $directory/$name/$name-description.txt -Value $subtitlelanguage
+        cmd /c $mediainfo_path --output=Text`;%Language/String% $directory/$name/$file | Add-Content $directory/$name/$name-description.txt
     }
 
     # Get screenshots
+    Write-Host "Description done; taking screenshot #1 at 5 minutes in..."
     cmd /c $ffmpeg_path -ss 00:05:00 -t 1 -i $directory/$name/$file $directory/$name/$name-screenshot1.png 2> $null
+    Write-Host "Screenshot 1 done; taking screenshot 2 at 20 minutes in..."
     cmd /c $ffmpeg_path -ss 00:20:00 -t 1 -i $directory/$name/$file $directory/$name/$name-screenshot2.png 2> $null
+    Write-Host "Screenshot 2 done."
     
     # Done
     Write-Output "Prepared description and screenshots for $name."
+}
+
+# Get a list of all video files in the directory
+foreach ($item in (Get-ChildItem $directory/* -include "*.m4v","*.mkv","*.mp4")) {
+    buildDesc $item
 }
