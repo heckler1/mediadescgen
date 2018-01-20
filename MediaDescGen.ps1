@@ -16,34 +16,34 @@ param (
 )
 
 # Define utility paths
-$mediainfo_path = "$PSScriptRoot\MediaDescGen\mediainfo\MediaInfo.exe"
-$avinaptic_path = "$PSScriptRoot\MediaDescGen\avinaptic\avinaptic2-20111218\avinaptic2-cli.exe"
-$ffmpeg_path = "$PSScriptRoot\MediaDescGen\ffmpeg\ffmpeg-20180102-57d0c24-win64-static\bin\ffmpeg.exe"
+$mediainfo_path = "$PSScriptRoot\MediaDescGen_Utilities\mediainfo\MediaInfo.exe"
+$avinaptic_path = "$PSScriptRoot\MediaDescGen_Utilities\avinaptic\avinaptic2-20111218\avinaptic2-cli.exe"
+$ffmpeg_path = "$PSScriptRoot\MediaDescGen_Utilities\ffmpeg\ffmpeg-20180102-57d0c24-win64-static\bin\ffmpeg.exe"
 
 # Download utilities, if needed
-if (!(Test-Path $PSScriptRoot/MediaDescGen)) {
+if (!(Test-Path $PSScriptRoot/MediaDescGen_Utilities)) {
     Write-Host "Utilities folder not found, creating..."
-    mkdir $PSScriptRoot/MediaDescGen | Out-Null
+    mkdir $PSScriptRoot/MediaDescGen_Utilities | Out-Null
 }
 if (!(Test-Path $mediainfo_path)) {
     Write-Host "Mediainfo not found, downloading..."
-    Invoke-WebRequest https://mediaarea.net/download/binary/mediainfo/17.12/MediaInfo_CLI_17.12_Windows_x64.zip -OutFile $PSScriptRoot/MediaDescGen/mediainfo.zip
-    Expand-Archive $PSScriptRoot/MediaDescGen/mediainfo.zip -DestinationPath $PSScriptRoot/MediaDescGen/mediainfo
-    Remove-Item $PSScriptRoot/MediaDescGen/mediainfo.zip
+    Invoke-WebRequest https://mediaarea.net/download/binary/mediainfo/17.12/MediaInfo_CLI_17.12_Windows_x64.zip -OutFile $PSScriptRoot/MediaDescGen_Utilities/mediainfo.zip
+    Expand-Archive $PSScriptRoot/MediaDescGen_Utilities/mediainfo.zip -DestinationPath $PSScriptRoot/MediaDescGen_Utilities/mediainfo
+    Remove-Item $PSScriptRoot/MediaDescGen_Utilities/mediainfo.zip
     Write-Host "Mediainfo downloaded."
 }
 if (!(Test-Path $avinaptic_path)) {
     Write-Host "Avinaptic not found, downloading..."
-    Invoke-WebRequest http://fsinapsi.altervista.org/code/avinaptic/avinaptic2-win32-20111218.zip -OutFile $PSScriptRoot/MediaDescGen/avinaptic.zip
-    Expand-Archive $PSScriptRoot/MediaDescGen/avinaptic.zip -DestinationPath $PSScriptRoot/MediaDescGen/avinaptic
-    Remove-Item $PSScriptRoot/MediaDescGen/avinaptic.zip
+    Invoke-WebRequest http://fsinapsi.altervista.org/code/avinaptic/avinaptic2-win32-20111218.zip -OutFile $PSScriptRoot/MediaDescGen_Utilities/avinaptic.zip
+    Expand-Archive $PSScriptRoot/MediaDescGen_Utilities/avinaptic.zip -DestinationPath $PSScriptRoot/MediaDescGen_Utilities/avinaptic
+    Remove-Item $PSScriptRoot/MediaDescGen_Utilities/avinaptic.zip
     Write-Host "Avinaptic downloaded."
 }
 if (!(Test-Path $ffmpeg_path)) {
     Write-Host "ffmpeg not found, downloading..."
-    Invoke-WebRequest https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-20180102-57d0c24-win64-static.zip -OutFile $PSScriptRoot/MediaDescGen/ffmpeg.zip
-    Expand-Archive $PSScriptRoot/MediaDescGen/ffmpeg.zip -DestinationPath $PSScriptRoot/MediaDescGen/ffmpeg
-    Remove-Item $PSScriptRoot/MediaDescGen/ffmpeg.zip
+    Invoke-WebRequest https://ffmpeg.zeranoe.com/builds/win64/static/ffmpeg-20180102-57d0c24-win64-static.zip -OutFile $PSScriptRoot/MediaDescGen_Utilities/ffmpeg.zip
+    Expand-Archive $PSScriptRoot/MediaDescGen_Utilities/ffmpeg.zip -DestinationPath $PSScriptRoot/MediaDescGen_Utilities/ffmpeg
+    Remove-Item $PSScriptRoot/MediaDescGen_Utilities/ffmpeg.zip
     Write-Host "ffmpeg downloaded."
 }
 
