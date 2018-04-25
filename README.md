@@ -7,6 +7,3 @@ Usage: `.\MediaDescGen.ps1 -directory "C:\Users\User\Downloads\"`
 On the first run, MediaDescGen downloads the required utilities to a folder named "MediaDescGen_Utilities", created in the same directory that the script is run from.
 
 This script uses MediaInfo, and if necessary Avinaptic, to gather the required information about the file and format it into a description, with BB code section headers. It also uses ffmpeg to take screenshots of the file at 5mins and 20mins in.
-
-
-
